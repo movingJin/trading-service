@@ -85,15 +85,20 @@ public class TradeSettingController {
         else
         {
             Future<Integer> bidThread = bidThreads.get(id);
-            if (bidThread.isDone()) {
-                try {
-                    bidThread.get();
-                } catch(Exception e) {
-                    logger.error(e.toString());
+            if(bidThread != null) {
+                if (bidThread.isDone()) {
+                    try {
+                        bidThread.get();
+                    } catch (Exception e) {
+                        logger.error(e.toString());
+                    }
                 }
+                boolean ret = bidThread.cancel(true);
+                logger.info("ret: " + ret);
+            }else{
+                logger.info(String.format("%s is already stop.", id));
+                logger.info("It'll be saved only setting.");
             }
-            boolean ret = bidThread.cancel(true);
-            logger.info("ret: " + ret);
         }
 
         tradeSetting.setId(id);
