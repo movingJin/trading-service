@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -140,18 +141,20 @@ public class TradeSettingController {
     }
 
     @RequestMapping(value ="/bots/{id}", method = RequestMethod.DELETE)
-    @ResponseStatus(HttpStatus.OK)
-    @ResponseBody
-    public String deleteBot(ServerHttpRequest request, @PathVariable String id) {
+    public ResponseEntity<String> deleteBot(ServerHttpRequest request, @PathVariable String id) {
         DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
                         .getHeaders()
                         .get(HttpHeaders.AUTHORIZATION))
                 .get(0)
                 .replace("Bearer ", ""));
         String uuid = verify.getSubject();
-        tradeSettingService.deleteById(id);
-
-        return "success";
+        boolean isActive = tradeSettingService.findById(id).get().getIsActive();
+        if(isActive){
+            return new ResponseEntity<>("bot is running", HttpStatus.NOT_ACCEPTABLE);
+        }else{
+            tradeSettingService.deleteById(id);
+            return new ResponseEntity<>("success", HttpStatus.OK);
+        }
     }
 
 

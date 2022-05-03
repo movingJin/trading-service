@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -42,94 +43,73 @@ public class TradingService implements InitializingBean {
         hashOperations = redisTemplate.opsForHash();
 
         //트레이딩봇 별, 평균매수금액, 매수수량 Redis에 저장
-        tradeSettingService.findAll().stream()
-                .forEach(setting -> {
-                    Consumer<String> consumer = (botId) ->{
-                        final DecimalWrapper quantity = new DecimalWrapper();
-                        final DecimalWrapper avg = new DecimalWrapper();
-                        ordersService.findByBotId(botId)
-                                .stream()
-                                .forEach(orders -> {
-
-                                    if(orders.getIsBid()){
-                                        avg.value = cumulativeAverage(
-                                                avg.value,
-                                                quantity.value,
-                                                BigDecimal.valueOf(orders.getPrice()),
-                                                BigDecimal.valueOf(orders.getQuantity())
-                                        );
-                                        quantity.value = quantity.value
-                                                .add(BigDecimal.valueOf(orders.getQuantity()));
-                                    }else{
-                                        quantity.value = quantity.value
-                                                .subtract(BigDecimal.valueOf(orders.getQuantity()));
-                                        if(quantity.value.compareTo(BigDecimal.ZERO) == 0){
-                                            avg.value = BigDecimal.ZERO;
-                                        }
-                                    }
-                                });
-
-                        hashOperations.put(botId, QUANTITY, quantity.toString());
-                        hashOperations.put(botId, BIDDING_AVG, avg.toString());
-                    };
-                    consumer.accept(setting.getId());
-                });
+        List<TradeSetting> tradeSettings = tradeSettingService.findAll();
+        for (TradeSetting ts:tradeSettings) {
+            String botId = ts.getId();
+            List<Orders> orders = ordersService.findByBotId(botId);
+            BigDecimal avg = BigDecimal.ZERO;
+            BigDecimal quantity = BigDecimal.ZERO;
+            for(Orders order: orders){
+                if(order.getIsBid()){
+                    avg = cumulativeAverage(
+                            avg,
+                            quantity,
+                            BigDecimal.valueOf(order.getPrice()),
+                            BigDecimal.valueOf(order.getQuantity())
+                    );
+                    quantity = quantity
+                            .add(BigDecimal.valueOf(order.getQuantity()));
+                }else{
+                    quantity = quantity.subtract(BigDecimal.valueOf(order.getQuantity()));
+                    if(quantity.compareTo(BigDecimal.ZERO) == 0){
+                        avg = BigDecimal.ZERO;
+                    }
+                }
+            }
+            hashOperations.put(botId, QUANTITY, quantity.toString());
+            hashOperations.put(botId, BIDDING_AVG, avg.toString());
+        }
 
 
         //유저 별, 평균매수금액, 매수수량 Redis에 저장
-        userInfoService.findAll().stream()
-                .forEach(user -> {
-                    Token.stream()
-                            .forEach( token -> {
-                                BiConsumer<String, String> consumer = (uuid, coinName) -> {
-                                    final DecimalWrapper quantity = new DecimalWrapper();
-                                    final DecimalWrapper avg = new DecimalWrapper();
-                                    ordersService.findByUuidAndCoinName(uuid, coinName)
-                                            .stream()
-                                            .forEach(orders -> {
-
-                                                if(orders.getIsBid()){
-                                                    avg.value = cumulativeAverage(
-                                                            avg.value,
-                                                            quantity.value,
-                                                            BigDecimal.valueOf(orders.getPrice()),
-                                                            BigDecimal.valueOf(orders.getQuantity())
-                                                    );
-                                                    quantity.value = quantity.value
-                                                            .add(BigDecimal.valueOf(orders.getQuantity()));
-                                                }else{
-                                                    quantity.value = quantity.value
-                                                            .subtract(BigDecimal.valueOf(orders.getQuantity()));
-                                                    if(quantity.value.compareTo(BigDecimal.ZERO) == 0){
-                                                        avg.value = BigDecimal.ZERO;
-                                                    }
-                                                }
-                                            });
-
-                                    hashOperations.put(uuid, String.format("%s_%s", coinName, QUANTITY), quantity.toString());
-                                    hashOperations.put(uuid, String.format("%s_%s", coinName, BIDDING_AVG), avg.toString());
-
-                                };
-                                consumer.accept(user.getUuid(), token.name());
-                                //hashOperations.put(token.name(), CLOSED_PRICE, "0"); //Redis가 분리되면, 사용
-                            });
-                });
+        List<UserInfo> userInfos = userInfoService.findAll();
+        for(UserInfo userInfo :userInfos){
+            String uuid = userInfo.getUuid();
+            for (Token token: Token.values()) {
+                BigDecimal avg = BigDecimal.ZERO;
+                BigDecimal quantity = BigDecimal.ZERO;
+                List<Orders> orders = ordersService.findByUuidAndCoinName(uuid, token.name());
+                for(Orders order: orders){
+                    if(order.getIsBid()){
+                        avg = cumulativeAverage(
+                                avg,
+                                quantity,
+                                BigDecimal.valueOf(order.getPrice()),
+                                BigDecimal.valueOf(order.getQuantity())
+                        );
+                        quantity = quantity.add(BigDecimal.valueOf(order.getQuantity()));
+                    }else{
+                        quantity = quantity.subtract(BigDecimal.valueOf(order.getQuantity()));
+                        if(quantity.compareTo(BigDecimal.ZERO) == 0){
+                            avg = BigDecimal.ZERO;
+                        }
+                    }
+                }
+                hashOperations.put(uuid, String.format("%s_%s", token.name(), QUANTITY), quantity.toString());
+                hashOperations.put(uuid, String.format("%s_%s", token.name(), BIDDING_AVG), avg.toString());
+            }
+        }
     }
 
     private void onBidding(UserInfo userInfo, TradeSetting setting)
     {
         String coinName = setting.getCoinName();
         BigDecimal currentPrice = new BigDecimal(hashOperations.get(setting.getCoinName(), CLOSED_PRICE));
-        if((setting.getIsBidConditionExceed()
-                && currentPrice.compareTo(
-                        new BigDecimal(hashOperations.get(setting.getCoinName(), setting.getBidReference()))
-                                .multiply(BigDecimal.valueOf(setting.getBidCondition()).divide(BigDecimal.valueOf(100.0), 6, RoundingMode.HALF_EVEN)))
-                > 0) //현재가가 MA보다 큰 경우,
-        || (!setting.getIsBidConditionExceed()
-                && currentPrice.compareTo(
-                        new BigDecimal(hashOperations.get(setting.getCoinName(), setting.getBidReference()))
-                                .multiply(BigDecimal.valueOf(setting.getBidCondition()).divide(BigDecimal.valueOf(100.0), 6, RoundingMode.HALF_EVEN)))
-                < 0)){ //현재가가 MA보다 작은 경우,
+        BigDecimal biddingCondition =
+                new BigDecimal(hashOperations.get(setting.getCoinName(), setting.getBidReference()))
+                        .multiply(BigDecimal.valueOf(setting.getBidCondition()).divide(BigDecimal.valueOf(100.0), 6, RoundingMode.HALF_EVEN));
+        if((setting.getIsBidConditionExceed() && currentPrice.compareTo(biddingCondition) > 0) //현재가가 MA보다 큰 경우,
+        || (!setting.getIsBidConditionExceed() && currentPrice.compareTo(biddingCondition) < 0)){ //현재가가 MA보다 작은 경우,
             String order_id = bithumbApiService.marketBidding(userInfo.getConnectKey(), userInfo.getSecretKey(), setting.getCoinName(), setting.getBidQuantity());
             if(order_id != null){
                 ordersService.save(
