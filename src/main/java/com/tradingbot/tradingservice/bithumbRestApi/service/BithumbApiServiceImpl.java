@@ -2,11 +2,13 @@ package com.tradingbot.tradingservice.bithumbRestApi.service;
 
 import com.tradingbot.tradingservice.bithumbRestApi.Api_Client;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
 
+import static com.tradingbot.tradingservice.bithumbRestApi.HttpRequest.METHOD_GET;
 import static com.tradingbot.tradingservice.bithumbRestApi.HttpRequest.METHOD_POST;
 
 @Slf4j
@@ -95,5 +97,31 @@ public class BithumbApiServiceImpl implements BithumbApiService {
         }
 
         return balance;
+    }
+
+    @Override
+    public Double getCurrentPriceByCoin(String coinName) {
+        Double currentPrice = 0.0;
+        Api_Client api = new Api_Client("dummy", "dummy");
+
+        try {
+            {
+                String reqUrl = String.format("/public/orderbook/%s_KRW", coinName);
+                HashMap<String, String> rgParams = new HashMap<String, String>();
+                rgParams.put("count", "1");
+                String result = api.callApi(reqUrl, rgParams, METHOD_GET);
+                JSONObject jObject = new JSONObject(result);
+                String status = jObject.getString("status");
+                if (status.equals("0000")) {
+                    JSONObject dataObject = jObject.getJSONObject("data");
+                    JSONArray bidsArray = dataObject.getJSONArray("bids");
+                    String openPrice = bidsArray.getJSONObject(0).getString("price");
+                    currentPrice = Double.parseDouble(openPrice);
+                }
+            }
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+        return currentPrice;
     }
 }

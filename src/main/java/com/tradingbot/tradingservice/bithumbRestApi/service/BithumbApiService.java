@@ -11,4 +11,5 @@ public interface BithumbApiService {
     public Double getBalance(String connectKey, String secretKey);
     public String marketBidding(String connectKey, String secretKey, String coinName, Double quantity);
     public String marketSell(String connectKey, String secretKey, String coinName, Double quantity);
+    Double getCurrentPriceByCoin(String coinName);
 }

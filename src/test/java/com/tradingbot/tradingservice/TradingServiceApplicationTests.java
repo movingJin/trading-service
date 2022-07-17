@@ -1,6 +1,10 @@
 package com.tradingbot.tradingservice;
 
+import com.tradingbot.tradingservice.setting.domain.TradeSetting;
+import com.tradingbot.tradingservice.setting.service.TradeSettingService;
 import com.tradingbot.tradingservice.trading.service.TradingService;
+import com.tradingbot.tradingservice.user.domain.UserInfo;
+import com.tradingbot.tradingservice.user.service.UserInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 class TradingServiceApplicationTests {
 	@Autowired
 	private TradingService tradingService;
+
+	@Autowired
+	private TradeSettingService tradeSettingService;
+
+	@Autowired
+	private UserInfoService userInfoService;
 
 	@Autowired
 	private RedisTemplate<String, String> redisTemplate;
@@ -49,7 +59,16 @@ class TradingServiceApplicationTests {
 						"}";
 	}
 
-
+	@Test
+	@Rollback(false)
+	@DisplayName("거래로직 테스트")
+	void onTradingTest() {
+		String uuid = "720d6f84-5656-4aa9-9743-5644202bad76";
+		String tradingBotId = "385389c37f2abf245438bc15dfcb3b001316571239d108d019b809988e999fbc";
+		UserInfo userInfo =  userInfoService.findByUuid(uuid).get();
+		TradeSetting tradeSetting= tradeSettingService.findById(tradingBotId).get();
+		tradingService.onTrading(userInfo, tradeSetting);
+	}
 
 	@Test
 	@Rollback(false)
