@@ -2,6 +2,7 @@ package com.tradingbot.tradingservice.setting.controller;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.tradingbot.tradingservice.common.Util;
 import com.tradingbot.tradingservice.setting.domain.TradeSetting;
 import com.tradingbot.tradingservice.setting.domain.TradeSettingDto;
 import com.tradingbot.tradingservice.setting.domain.TradeSettingMapper;
@@ -43,12 +44,7 @@ public class TradeSettingController {
     @ResponseBody
     public String createBot(ServerHttpRequest request,
                             @RequestBody TradeSettingDto tradeSettingDto) throws NoSuchAlgorithmException {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
         TradeSetting tradeSetting = TradeSettingMapper.INSTANCE.toEntity(tradeSettingDto);
 
         String tradeSettingId = sha256(uuid + tradeSetting.getBotName());
@@ -69,12 +65,7 @@ public class TradeSettingController {
     public String updateBot(ServerHttpRequest request,
                                   @PathVariable String id,
                                   @RequestBody TradeSettingDto tradeSettingDto) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
         TradeSetting tradeSetting = TradeSettingMapper.INSTANCE.toEntity(tradeSettingDto);
 
         if(tradeSetting.getIsActive())
@@ -113,26 +104,16 @@ public class TradeSettingController {
     @ResponseStatus(HttpStatus.OK)
     @ResponseBody
     public Flux<TradeSettingDto> findBots(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
         return Flux.fromStream(tradeSettingService.findByUuid(uuid).stream()
-                .map(setting -> TradeSettingMapper.INSTANCE.toDto(setting)));
+                .map(TradeSettingMapper.INSTANCE::toDto));
     }
 
     @RequestMapping(value ="/bots/{id}", method = RequestMethod.GET)
     @ResponseStatus(HttpStatus.OK)
     @ResponseBody
     public Mono<TradeSettingDto> findBot(ServerHttpRequest request, @PathVariable String id) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
         return Mono.just(
                 TradeSettingMapper.INSTANCE.toDto(
                         tradeSettingService.findById(id).get()
@@ -142,12 +123,7 @@ public class TradeSettingController {
 
     @RequestMapping(value ="/bots/{id}", method = RequestMethod.DELETE)
     public ResponseEntity<String> deleteBot(ServerHttpRequest request, @PathVariable String id) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
         boolean isActive = tradeSettingService.findById(id).get().getIsActive();
         if(isActive){
             return new ResponseEntity<>("bot is running", HttpStatus.NOT_ACCEPTABLE);

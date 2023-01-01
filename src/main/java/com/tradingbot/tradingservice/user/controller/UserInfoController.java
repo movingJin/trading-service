@@ -2,6 +2,7 @@ package com.tradingbot.tradingservice.user.controller;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.tradingbot.tradingservice.common.Util;
 import com.tradingbot.tradingservice.user.domain.PortfolioDto;
 import com.tradingbot.tradingservice.user.domain.UserInfo;
 import com.tradingbot.tradingservice.user.service.UserInfoService;
@@ -32,12 +33,7 @@ public class UserInfoController {
 
     @GetMapping(value = "/user-api")
     public Mono<ResponseEntity<UserInfo>> findUserApi(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.findByUuid(uuid).orElse(new UserInfo(uuid)))
                 .map(user -> ResponseEntity.ok().body(user));
@@ -47,12 +43,7 @@ public class UserInfoController {
     public String updateUserApi(ServerHttpRequest request,
                                 @RequestBody UserInfo userInfo) {
         String retMessage;
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         if(userInfoService.existsByConnectKey(userInfo.getConnectKey())){
             retMessage = HTTP_ALREADY_REGISTERED;
@@ -68,12 +59,7 @@ public class UserInfoController {
     @PostMapping(value = "/api-validate")
     public Mono<ResponseEntity<Boolean>> isApiValidate(ServerHttpRequest request
             ,@RequestBody UserInfo userInfo) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.isApiValidate(userInfo.getConnectKey(), userInfo.getSecretKey()))
                 .map(valid -> ResponseEntity.ok().body(valid));
@@ -81,48 +67,28 @@ public class UserInfoController {
 
     @GetMapping(value = "/user-balance")
     public Mono<ResponseEntity<Double>> getBalance(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.getUserBalance(uuid)).map(user -> ResponseEntity.ok().body(user));
     }
 
     @GetMapping(value = "/user-assets")
     public Mono<ResponseEntity<Double>> getAssets(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.getUserAssets(uuid)).map(user -> ResponseEntity.ok().body(user));
     }
 
     @GetMapping(value = "/user-profit")
     public Mono<ResponseEntity<Double>> getProfit(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.getUserProfit(uuid)).map(user -> ResponseEntity.ok().body(user));
     }
 
     @GetMapping(value = "/user-portfolio")
     public Mono<ResponseEntity<PortfolioDto>> getPortfolio(ServerHttpRequest request) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(userInfoService.getUserPortfolio(uuid))
                 .map(portfolio -> ResponseEntity.ok().body(portfolio));

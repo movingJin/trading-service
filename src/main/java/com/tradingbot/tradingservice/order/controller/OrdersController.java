@@ -2,6 +2,7 @@ package com.tradingbot.tradingservice.order.controller;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.tradingbot.tradingservice.common.Util;
 import com.tradingbot.tradingservice.order.domain.Orders;
 import com.tradingbot.tradingservice.order.service.OrdersService;
 import com.tradingbot.tradingservice.setting.domain.TradeSetting;
@@ -36,12 +37,7 @@ public class OrdersController {
     @RequestMapping(value ="/orders", method = RequestMethod.GET)
     @ResponseStatus(HttpStatus.OK)
     public Flux<Orders> findOrders(ServerHttpRequest request){
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Flux.fromStream(ordersService
                 .findByUuid(uuid)
@@ -52,12 +48,7 @@ public class OrdersController {
     @RequestMapping(value ="/orders/{id}", method = RequestMethod.GET)
     public Mono<ResponseEntity<Orders>> findOrder(ServerHttpRequest request,
                                   @PathVariable String id) {
-        DecodedJWT verify = JWT.decode(Objects.requireNonNull(request
-                        .getHeaders()
-                        .get(HttpHeaders.AUTHORIZATION))
-                .get(0)
-                .replace("Bearer ", ""));
-        String uuid = verify.getSubject();
+        String uuid = Util.getUuidFromToken(request);
 
         return Mono.just(ordersService.findById(id).get()).map(order -> ResponseEntity.ok().body(order));
     }
