@@ -5,6 +5,7 @@ import com.tradingbot.tradingservice.order.repository.OrdersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +18,12 @@ public class OrdersServiceImpl implements OrdersService {
     public List<Orders> findByUuid(String uuid) {
         return ordersRepository.findByUuid(uuid);
     }
+
+    @Override
+    public List<Orders> findByUuidAndTimeTagAfterOrderByTimeTagDesc(String uuid, LocalDateTime timeTag) {
+        return ordersRepository.findByUuidAndTimeTagAfterOrderByTimeTagDesc(uuid, timeTag);
+    }
+
 
     @Override
     public List<Orders> findByBotId(String botId) {
